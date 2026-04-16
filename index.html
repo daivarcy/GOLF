@@ -74,6 +74,7 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
 .badge-c{background:#dbeafe;color:#1d4ed8}
 .badge-t{background:#dcfce7;color:#15803d}
+.badge-v{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
 .bk-members{font-size:13px;color:#555;margin-bottom:3px}
 .bk-booker{font-size:12px;color:#888}
 .bk-note{font-size:12px;color:#666;margin-top:6px;padding-top:6px;
@@ -630,13 +631,18 @@ function renderDayPanel(){
 //  BOOKING CARD
 // ══════════════════════════════════════
 function bkCardHtml(b, showActions=false){
-  const all = [b.booker,...b.members];
+  const all = [b.booker,...(Array.isArray(b.members)?b.members:[])];
+  const vacancy = 4 - all.length;
+  const vacancyHtml = vacancy > 0
+    ? `<span class="badge badge-v">空き${vacancy}名</span>`
+    : '';
   return `<div class="bk-card">
     <div class="bk-top">
       <span class="bk-time">${b.hour}:${b.min}</span>
       <div class="bk-badges">
         <span class="badge badge-c">${b.course}</span>
         <span class="badge badge-t">${b.type}</span>
+        ${vacancyHtml}
       </div>
     </div>
     <div class="bk-members">${all.join('・')}（${all.length}名）</div>
@@ -743,14 +749,17 @@ td{border-bottom:1px solid #e5e5e5;vertical-align:middle}
 // ══════════════════════════════════════
 function renderMySel(){
   const sel = document.getElementById('my-sel');
-  const cur = sel.value;
+  // localStorage から前回の選択を復元
+  const saved = localStorage.getItem('golf_my_member') || sel.value || '';
   sel.innerHTML = '<option value="">メンバーを選択...</option>'+
     D.members.map(m=>`<option value="${m}">${m}</option>`).join('');
-  sel.value = cur;
+  if(saved) sel.value = saved;
   renderMy();
 }
 function renderMy(){
   const name = document.getElementById('my-sel').value;
+  // 選択したメンバーをlocalStorageに保存
+  if(name) localStorage.setItem('golf_my_member', name);
   const body = document.getElementById('my-body');
   if(!name){ body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">メンバーを選択してください</div>'; return; }
   const bks = D.bookings.filter(b=>b.booker===name||b.members.includes(name));
