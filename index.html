@@ -413,7 +413,7 @@ async function loadAll(){
       min:      r.min,
       course:   r.course,
       type:     r.type,
-      members:  r.members || [],
+      members:  Array.isArray(r.members) ? r.members : [],
       note:     r.note || '',
       createdAt:r.created_at
     }));
@@ -534,17 +534,20 @@ function showForm(id=null){
   }).join('');
 
   if(id){
-    const b = D.bookings.find(x=>x.id===id);
+    const b = D.bookings.find(x=>String(x.id)===String(id));
     if(b){
       bookerSel.value = b.booker;
       bookerSel.disabled = true;
-      document.getElementById('f-date').value   = b.date;
-      document.getElementById('f-hour').value   = b.hour;
-      document.getElementById('f-min').value    = b.min;
-      document.getElementById('f-course').value = b.course;
-      document.getElementById('f-type').value   = b.type;
-      document.getElementById('f-note').value   = b.note||'';
-      formMems = [...b.members];
+      document.getElementById('f-date').value   = b.date   || '';
+      document.getElementById('f-note').value   = b.note   || '';
+      // セレクトボックスはoption生成後にsetするため少し待つ
+      setTimeout(()=>{
+        document.getElementById('f-hour').value   = b.hour   || '08';
+        document.getElementById('f-min').value    = b.min    || '00';
+        document.getElementById('f-course').value = b.course || 'OUT→IN';
+        document.getElementById('f-type').value   = b.type   || '通常';
+      }, 0);
+      formMems = Array.isArray(b.members) ? [...b.members] : [];
     }
   } else {
     bookerSel.disabled = false;
