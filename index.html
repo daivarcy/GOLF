@@ -232,6 +232,9 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 
   <!-- LIST -->
   <div class="screen" id="sc-list">
+    <div style="display:flex;justify-content:flex-end;padding:10px 14px 0;gap:8px">
+      <button class="btn-sm" onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF出力</button>
+    </div>
     <div class="filter-row" id="filter-row"></div>
     <div class="list-body" id="list-body"></div>
   </div>
@@ -559,6 +562,76 @@ function renderList(){
     html+=bkCardHtml(b,true);
   });
   body.innerHTML=html;
+}
+
+function downloadPDF(){
+  if(!D.bookings.length){ toast('予約がありません'); return; }
+
+  // 現在のフィルタを取得
+  const row = document.getElementById('filter-row');
+  const active = [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f);
+  let bks = [...D.bookings];
+  if(!active.includes('すべて'))
+    bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
+  if(!bks.length){ toast('表示中の予約がありません'); return; }
+
+  // 印刷用ウィンドウを開く
+  const win = window.open('','_blank');
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+
+  let rows = '';
+  let lastDate = '';
+  bks.forEach(b=>{
+    const all = [b.booker,...b.members];
+    if(b.date !== lastDate){
+      rows += `<tr style="background:#f0f0f0"><td colspan="6" style="padding:8px 10px;font-weight:600;font-size:13px">${dispDate(b.date)}</td></tr>`;
+      lastDate = b.date;
+    }
+    rows += `<tr>
+      <td style="padding:8px 10px;font-size:13px;font-weight:600">${b.hour}:${b.min}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.course}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.type}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.booker}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.members.join('・')||'―'}</td>
+      <td style="padding:8px 10px;font-size:13px;color:#666">${b.note||''}</td>
+    </tr>`;
+  });
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="ja"><head>
+<meta charset="UTF-8">
+<title>ゴルフ予約一覧</title>
+<style>
+  body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;padding:24px;color:#1a1a1a}
+  h1{font-size:18px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:12px;color:#888;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#1a1a1a;color:#fff;padding:8px 10px;text-align:left;font-weight:500;font-size:12px}
+  td{border-bottom:1px solid #e5e5e5;vertical-align:middle}
+  tr:hover td{background:#fafafa}
+  @media print{
+    body{padding:12px}
+    button{display:none}
+    @page{margin:15mm}
+  }
+</style>
+</head><body>
+<h1>ゴルフ予約一覧</h1>
+<div class="sub">出力日：${now}　全${bks.length}件${active.includes('すべて')?'':'（フィルタ適用中）'}</div>
+<table>
+  <thead>
+    <tr>
+      <th>時刻</th><th>コース</th><th>区分</th>
+      <th>予約者</th><th>同伴メンバー</th><th>備考</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+<div style="margin-top:20px;text-align:center">
+  <button onclick="window.print()" style="padding:12px 32px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit">🖨️ PDFとして保存 / 印刷</button>
+</div>
+</body></html>`);
+  win.document.close();
 }
 
 function toggleFilter(btn){
