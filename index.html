@@ -7,36 +7,35 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffffff">
 <title>ゴルフ予約</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{font-size:16px}
 body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
   background:#f5f5f5;color:#1a1a1a;min-height:100vh;
   padding-bottom:env(safe-area-inset-bottom)}
-
-/* ── APP SHELL ── */
 .app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;
   display:flex;flex-direction:column;position:relative}
-.header{
-  padding:env(safe-area-inset-top,0) 0 0;
-  background:#fff;border-bottom:1px solid #e5e5e5;
-  position:sticky;top:0;z-index:50;
-}
+.header{padding:env(safe-area-inset-top,0) 0 0;background:#fff;
+  border-bottom:1px solid #e5e5e5;position:sticky;top:0;z-index:50}
 .header-inner{display:flex;align-items:center;gap:10px;padding:14px 16px}
 .header h1{font-size:17px;font-weight:600;flex:1}
 .back-btn{background:none;border:none;font-size:22px;cursor:pointer;
   color:#666;padding:0 4px;line-height:1;display:none}
+.sync-indicator{font-size:11px;color:#888;display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#ccc}
+.sync-dot.ok{background:#22c55e}
+.sync-dot.loading{background:#f59e0b;animation:pulse 1s infinite}
+.sync-dot.err{background:#ef4444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* ── NAV ── */
 .nav{display:flex;background:#fff;border-bottom:1px solid #e5e5e5}
-.nav-btn{flex:1;padding:12px 2px;border:none;background:none;
-  font-size:11px;color:#888;cursor:pointer;
-  border-bottom:2px solid transparent;font-family:inherit;
-  display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav-btn{flex:1;padding:12px 2px;border:none;background:none;font-size:11px;
+  color:#888;cursor:pointer;border-bottom:2px solid transparent;
+  font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav-btn .nav-icon{font-size:18px}
 .nav-btn.active{color:#1a1a1a;border-bottom-color:#1a1a1a;font-weight:600}
 
-/* ── SCREENS ── */
 .screen{display:none;flex:1;overflow-y:auto;
   padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
 .screen.show{display:block}
@@ -65,7 +64,6 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .cal-day.past.sun,.cal-day.past.sat{color:#ccc}
 .cal-day.sel.sun,.cal-day.sel.sat{color:#fff}
 
-/* ── DAY PANEL ── */
 .day-panel{padding:0 12px;margin-top:8px}
 .day-title{font-size:15px;font-weight:600;padding:12px 4px 10px}
 .bk-card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;
@@ -82,25 +80,23 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
   border-top:1px solid #f0f0f0}
 .bk-actions{display:flex;gap:6px;margin-top:8px}
 .btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;
-  border:1px solid #ddd;background:none;cursor:pointer;
-  font-family:inherit;color:#555}
+  border:1px solid #ddd;background:none;cursor:pointer;font-family:inherit;color:#555}
 .btn-sm.danger{color:#ef4444;border-color:#fca5a5}
-.btn-add-day{
-  width:100%;margin-top:4px;padding:14px;
-  background:#1a1a1a;color:#fff;border:none;border-radius:12px;
-  font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-add-day{width:100%;margin-top:4px;padding:14px;background:#1a1a1a;color:#fff;
+  border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;
+  font-family:inherit}
 .btn-add-day:active{opacity:.85}
 .empty-day{text-align:center;padding:24px 16px;color:#888;font-size:14px}
 
 /* ── FORM ── */
 .form-wrap{padding:0 16px}
 .form-sec{margin-top:18px}
-.form-label{font-size:12px;color:#666;font-weight:500;
-  letter-spacing:.03em;display:block;margin-bottom:6px}
-.form-input,.form-select,.form-textarea{
-  width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:10px;
-  font-size:16px;font-family:inherit;background:#fff;color:#1a1a1a;
-  -webkit-appearance:none;outline:none;transition:border-color .2s}
+.form-label{font-size:12px;color:#666;font-weight:500;letter-spacing:.03em;
+  display:block;margin-bottom:6px}
+.form-input,.form-select,.form-textarea{width:100%;padding:12px 14px;
+  border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;
+  background:#fff;color:#1a1a1a;-webkit-appearance:none;outline:none;
+  transition:border-color .2s}
 .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:#1a1a1a}
 .form-input::placeholder,.form-textarea::placeholder{color:#bbb}
 .form-textarea{resize:none;line-height:1.6}
@@ -109,26 +105,25 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .sel-wrap::after{content:'▾';position:absolute;right:12px;top:50%;
   transform:translateY(-50%);pointer-events:none;color:#888;font-size:12px}
 .member-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px}
-.chip{display:inline-flex;align-items:center;gap:5px;
-  background:#f5f5f5;border:1px solid #ddd;border-radius:20px;
-  padding:5px 10px;font-size:13px}
-.chip-del{background:none;border:none;cursor:pointer;
-  color:#888;font-size:15px;padding:0;line-height:1}
+.chip{display:inline-flex;align-items:center;gap:5px;background:#f5f5f5;
+  border:1px solid #ddd;border-radius:20px;padding:5px 10px;font-size:13px}
+.chip-del{background:none;border:none;cursor:pointer;color:#888;font-size:15px;
+  padding:0;line-height:1}
 .member-add-row{display:flex;gap:8px;margin-top:8px}
 .member-add-row .sel-wrap{flex:1}
-.btn-add-member{padding:12px 16px;background:#1a1a1a;color:#fff;
-  border:none;border-radius:10px;font-size:14px;cursor:pointer;
-  font-family:inherit;white-space:nowrap}
+.btn-add-member{padding:12px 16px;background:#1a1a1a;color:#fff;border:none;
+  border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .conflict-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;
   padding:10px 12px;font-size:13px;color:#b91c1c;margin-top:8px}
-.btn-submit{width:100%;margin-top:24px;padding:16px;background:#1a1a1a;
-  color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;
-  cursor:pointer;font-family:inherit}
+.btn-submit{width:100%;margin-top:24px;padding:16px;background:#1a1a1a;color:#fff;
+  border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;
+  font-family:inherit}
 .btn-submit:active{opacity:.85}
+.btn-submit:disabled{background:#ccc;cursor:not-allowed}
 
 /* ── LIST ── */
-.filter-row{display:flex;gap:6px;padding:12px 14px;
-  overflow-x:auto;scrollbar-width:none;border-bottom:1px solid #f0f0f0}
+.filter-row{display:flex;gap:6px;padding:12px 14px;overflow-x:auto;
+  scrollbar-width:none;border-bottom:1px solid #f0f0f0}
 .filter-row::-webkit-scrollbar{display:none}
 .filter-chip{white-space:nowrap;padding:7px 14px;border:1px solid #ddd;
   border-radius:20px;background:none;font-size:13px;cursor:pointer;
@@ -138,7 +133,7 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .list-date-hd{font-size:12px;color:#888;font-weight:600;
   padding:10px 4px 6px;letter-spacing:.04em}
 
-/* ── MY BOOKINGS ── */
+/* ── MY ── */
 .my-top{padding:12px 16px;border-bottom:1px solid #f0f0f0}
 
 /* ── MASTER ── */
@@ -146,53 +141,57 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .master-sec+.master-sec{border-top:1px solid #f0f0f0}
 .master-sec-title{font-size:14px;font-weight:600;margin-bottom:10px}
 .master-item{display:flex;align-items:center;justify-content:space-between;
-  padding:11px 12px;background:#f9f9f9;border-radius:8px;
-  font-size:14px;margin-bottom:6px}
-.master-del{background:none;border:none;cursor:pointer;
-  color:#bbb;font-size:18px;padding:0;line-height:1}
+  padding:11px 12px;background:#f9f9f9;border-radius:8px;font-size:14px;margin-bottom:6px}
+.master-del{background:none;border:none;cursor:pointer;color:#bbb;font-size:18px;padding:0;line-height:1}
 .master-add{display:flex;gap:8px;margin-top:4px}
 .master-add .form-input{flex:1}
-.master-add button{padding:12px 16px;background:#1a1a1a;color:#fff;
-  border:none;border-radius:10px;font-size:14px;cursor:pointer;
-  font-family:inherit;white-space:nowrap}
+.master-add button{padding:12px 16px;background:#1a1a1a;color:#fff;border:none;
+  border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .fixed-tag{font-size:11px;padding:2px 8px;border-radius:10px;
   background:#f0f0f0;color:#888}
 
+/* ── LOADING ── */
+.loading-screen{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:60px 20px;color:#888;gap:12px}
+.spinner{width:28px;height:28px;border:3px solid #f0f0f0;
+  border-top-color:#1a1a1a;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* ── MODAL ── */
-.modal-bg{display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,.5);z-index:200;
-  align-items:flex-end;justify-content:center;padding:0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:200;align-items:flex-end;justify-content:center;padding:0}
 .modal-bg.open{display:flex}
-.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;
-  max-width:480px;padding:24px 20px calc(env(safe-area-inset-bottom,0px)+20px);
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;
+  padding:24px 20px calc(env(safe-area-inset-bottom,0px)+20px);
   animation:slideUp .25s ease}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .modal-title{font-size:17px;font-weight:600;margin-bottom:8px}
 .modal-body{font-size:14px;color:#666;line-height:1.6;margin-bottom:20px}
 .modal-btns{display:flex;gap:8px}
-.modal-btns button{flex:1;padding:14px;border-radius:10px;
-  font-size:15px;font-family:inherit;cursor:pointer;font-weight:500}
+.modal-btns button{flex:1;padding:14px;border-radius:10px;font-size:15px;
+  font-family:inherit;cursor:pointer;font-weight:500}
 .btn-modal-cancel{background:#f5f5f5;border:none;color:#555}
 .btn-modal-ok{background:#1a1a1a;border:none;color:#fff}
 .btn-modal-danger{background:#ef4444;border:none;color:#fff}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);
-  left:50%;transform:translateX(-50%) translateY(60px);
-  background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:30px;
-  font-size:14px;opacity:0;transition:all .3s;z-index:300;
-  white-space:nowrap;pointer-events:none}
+  left:50%;transform:translateX(-50%) translateY(60px);background:#1a1a1a;
+  color:#fff;padding:10px 20px;border-radius:30px;font-size:14px;opacity:0;
+  transition:all .3s;z-index:300;white-space:nowrap;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
-
 <div class="app">
-  <!-- HEADER -->
   <div class="header">
     <div class="header-inner">
       <button class="back-btn" id="back-btn" onclick="goBack()">‹</button>
       <h1 id="header-title">ゴルフ予約</h1>
+      <div class="sync-indicator">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label"></span>
+      </div>
     </div>
     <div class="nav" id="main-nav">
       <button class="nav-btn active" onclick="showTab('cal')">
@@ -232,8 +231,8 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 
   <!-- LIST -->
   <div class="screen" id="sc-list">
-    <div style="display:flex;justify-content:flex-end;padding:10px 14px 0;gap:8px">
-      <button class="btn-sm" onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF出力</button>
+    <div style="display:flex;justify-content:flex-end;padding:10px 14px 0">
+      <button onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF出力</button>
     </div>
     <div class="filter-row" id="filter-row"></div>
     <div class="list-body" id="list-body"></div>
@@ -278,7 +277,6 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
   <div class="screen" id="sc-form">
     <div class="form-wrap">
       <input type="hidden" id="edit-id">
-
       <div class="form-sec">
         <label class="form-label">予約者</label>
         <div class="sel-wrap">
@@ -287,12 +285,10 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           </select>
         </div>
       </div>
-
       <div class="form-sec">
         <label class="form-label">日付</label>
         <input type="date" class="form-input" id="f-date" onchange="onFormChange()">
       </div>
-
       <div class="form-sec">
         <label class="form-label">時刻</label>
         <div class="time-row">
@@ -304,7 +300,6 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           </div>
         </div>
       </div>
-
       <div class="form-sec">
         <label class="form-label">コース</label>
         <div class="sel-wrap">
@@ -315,7 +310,6 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           </select>
         </div>
       </div>
-
       <div class="form-sec">
         <label class="form-label">区分</label>
         <div class="sel-wrap">
@@ -325,9 +319,7 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           </select>
         </div>
       </div>
-
       <div id="conflict-area"></div>
-
       <div class="form-sec">
         <label class="form-label">同伴メンバー（最大3名）</label>
         <div class="member-chips" id="member-chips"></div>
@@ -340,13 +332,11 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           <button class="btn-add-member" onclick="addMemberToForm()">追加</button>
         </div>
       </div>
-
       <div class="form-sec">
         <label class="form-label">備考（任意）</label>
         <textarea class="form-textarea" id="f-note" rows="3" placeholder="コンペ名など"></textarea>
       </div>
-
-      <button class="btn-submit" onclick="submitForm()">予約を登録する</button>
+      <button class="btn-submit" id="submit-btn" onclick="submitForm()">予約を登録する</button>
       <div style="height:20px"></div>
     </div>
   </div>
@@ -356,24 +346,33 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 <div class="modal-bg" id="modal">
   <div class="modal">
     <div class="modal-title" id="modal-title"></div>
-    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-body"  id="modal-body"></div>
     <div class="modal-btns" id="modal-btns"></div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
 'use strict';
-const STORE_KEY = 'golf_v2';
-let D = { members:['田中','鈴木','佐藤','山田','伊藤'], bookings:[] };
+
+// ══════════════════════════════════════
+//  Supabase 設定
+// ══════════════════════════════════════
+const SUPABASE_URL = 'https://wczqpyrsbitlcmcmuegs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_jKew2LZXDLU64r_VlPrO3w_JFz8cvDY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let D = { members: [], bookings: [] };
 let calY = new Date().getFullYear();
 let calM = new Date().getMonth();
-let selDate = null;
-let editId = null;
+let selDate  = null;
+let editId   = null;
 let formMems = [];
-let prevTab = 'cal';
-let curTab  = 'cal';
+let prevTab  = 'cal';
+let curTab   = 'cal';
 
 const today = new Date(); today.setHours(0,0,0,0);
 const pad = n => String(n).padStart(2,'0');
@@ -383,15 +382,121 @@ const dispDate = s => {
   return `${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
 };
 
-// ── STORAGE ──
-function loadData(){
-  try{ const r=localStorage.getItem(STORE_KEY); if(r) D=JSON.parse(r); }catch(e){}
-}
-function saveData(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify(D)); }catch(e){}
+// ══════════════════════════════════════
+//  SYNC INDICATOR
+// ══════════════════════════════════════
+function setSyncStatus(status, label=''){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + status;
+  lbl.textContent = label;
 }
 
-// ── TABS ──
+// ══════════════════════════════════════
+//  SUPABASE DATA
+// ══════════════════════════════════════
+async function loadAll(){
+  setSyncStatus('loading','読み込み中...');
+  try{
+    const [mRes, bRes] = await Promise.all([
+      sb.from('members').select('*').order('created_at'),
+      sb.from('bookings').select('*').order('date').order('hour').order('min')
+    ]);
+    if(mRes.error) throw mRes.error;
+    if(bRes.error) throw bRes.error;
+    D.members  = mRes.data.map(r=>r.name);
+    D.bookings = bRes.data.map(r=>({
+      id:       r.id,
+      booker:   r.booker,
+      date:     r.date,
+      hour:     r.hour,
+      min:      r.min,
+      course:   r.course,
+      type:     r.type,
+      members:  r.members || [],
+      note:     r.note || '',
+      createdAt:r.created_at
+    }));
+    setSyncStatus('ok','');
+  }catch(e){
+    setSyncStatus('err','読込失敗');
+    toast('データの読み込みに失敗しました');
+  }
+}
+
+async function saveMember(name){
+  setSyncStatus('loading','');
+  const {error} = await sb.from('members').insert({name});
+  if(error){ setSyncStatus('err','保存失敗'); toast('追加に失敗しました: '+error.message); return false; }
+  setSyncStatus('ok',''); return true;
+}
+
+async function deleteMemberDB(name){
+  const {error} = await sb.from('members').delete().eq('name',name);
+  if(error){ toast('削除に失敗しました'); return false; }
+  return true;
+}
+
+async function saveBooking(data){
+  setSyncStatus('loading','');
+  const {data:res, error} = await sb.from('bookings').insert({
+    booker:  data.booker,
+    date:    data.date,
+    hour:    data.hour,
+    min:     data.min,
+    course:  data.course,
+    type:    data.type,
+    members: data.members,
+    note:    data.note
+  }).select().single();
+  if(error){ setSyncStatus('err','保存失敗'); toast('登録に失敗しました: '+error.message); return null; }
+  setSyncStatus('ok',''); return res;
+}
+
+async function updateBooking(id, data){
+  setSyncStatus('loading','');
+  const {error} = await sb.from('bookings').update({
+    date:    data.date,
+    hour:    data.hour,
+    min:     data.min,
+    course:  data.course,
+    type:    data.type,
+    members: data.members,
+    note:    data.note
+  }).eq('id',id);
+  if(error){ setSyncStatus('err','更新失敗'); toast('更新に失敗しました: '+error.message); return false; }
+  setSyncStatus('ok',''); return true;
+}
+
+async function deleteBookingDB(id){
+  setSyncStatus('loading','');
+  const {error} = await sb.from('bookings').delete().eq('id',id);
+  if(error){ setSyncStatus('err','削除失敗'); toast('削除に失敗しました'); return false; }
+  setSyncStatus('ok',''); return true;
+}
+
+// ══════════════════════════════════════
+//  REALTIME 購読
+// ══════════════════════════════════════
+function subscribeRealtime(){
+  sb.channel('golf-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'bookings'}, async ()=>{
+      await loadAll();
+      renderCal();
+      if(curTab==='list')   renderList();
+      if(curTab==='my')     renderMy();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'members'}, async ()=>{
+      await loadAll();
+      if(curTab==='master') renderMembers();
+      if(curTab==='my')     renderMySel();
+    })
+    .subscribe();
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
 function showTab(tab){
   prevTab = curTab; curTab = tab;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
@@ -415,20 +520,17 @@ function showForm(id=null){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
   document.getElementById('sc-form').classList.add('show');
 
-  // 予約者
   const bookerSel = document.getElementById('f-booker');
-  bookerSel.innerHTML = '<option value="">選択してください</option>' +
+  bookerSel.innerHTML = '<option value="">選択してください</option>'+
     D.members.map(m=>`<option value="${m}">${m}</option>`).join('');
 
-  // 時刻
   const hSel = document.getElementById('f-hour');
   hSel.innerHTML = Array.from({length:14},(_,i)=>{
     const v=pad(i+6); return`<option value="${v}">${v}時</option>`;
   }).join('');
   const mSel = document.getElementById('f-min');
   mSel.innerHTML = Array.from({length:60},(_,i)=>{
-    const v=String(i).padStart(2,'0');
-    return `<option value="${v}">${v}分</option>`;
+    const v=pad(i); return`<option value="${v}">${v}分</option>`;
   }).join('');
 
   if(id){
@@ -436,9 +538,9 @@ function showForm(id=null){
     if(b){
       bookerSel.value = b.booker;
       bookerSel.disabled = true;
-      document.getElementById('f-date').value = b.date;
-      document.getElementById('f-hour').value = b.hour;
-      document.getElementById('f-min').value  = b.min;
+      document.getElementById('f-date').value   = b.date;
+      document.getElementById('f-hour').value   = b.hour;
+      document.getElementById('f-min').value    = b.min;
       document.getElementById('f-course').value = b.course;
       document.getElementById('f-type').value   = b.type;
       document.getElementById('f-note').value   = b.note||'';
@@ -465,12 +567,13 @@ function goBack(){
   showTab(prevTab);
 }
 
-// ── CALENDAR ──
+// ══════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════
 function changeMonth(d){
   calM += d;
   if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;}
-  selDate = null;
-  renderCal();
+  selDate = null; renderCal();
 }
 
 function renderCal(){
@@ -480,13 +583,13 @@ function renderCal(){
   let html = '';
   for(let i=0;i<first.getDay();i++) html += '<div class="cal-day empty"></div>';
   for(let d=1;d<=last.getDate();d++){
-    const dt = new Date(calY,calM,d);
-    const ds = fmt(dt);
-    const past   = dt < today;
-    const isTod  = ds === fmt(today);
-    const isSel  = ds === selDate;
-    const hasBk  = D.bookings.some(b=>b.date===ds);
-    const dow    = dt.getDay();
+    const dt  = new Date(calY,calM,d);
+    const ds  = fmt(dt);
+    const past  = dt < today;
+    const isTod = ds === fmt(today);
+    const isSel = ds === selDate;
+    const hasBk = D.bookings.some(b=>b.date===ds);
+    const dow   = dt.getDay();
     let cls = 'cal-day';
     if(past)  cls+=' past';
     if(isTod) cls+=' today';
@@ -505,8 +608,7 @@ function renderCal(){
 function selectDate(ds){
   const dt = new Date(ds+'T00:00:00');
   if(dt < today) return;
-  selDate = ds;
-  renderCal();
+  selDate = ds; renderCal();
 }
 
 function renderDayPanel(){
@@ -521,7 +623,9 @@ function renderDayPanel(){
   panel.innerHTML = html;
 }
 
-// ── BOOKING CARD ──
+// ══════════════════════════════════════
+//  BOOKING CARD
+// ══════════════════════════════════════
 function bkCardHtml(b, showActions=false){
   const all = [b.booker,...b.members];
   return `<div class="bk-card">
@@ -542,7 +646,9 @@ function bkCardHtml(b, showActions=false){
   </div>`;
 }
 
-// ── LIST ──
+// ══════════════════════════════════════
+//  LIST
+// ══════════════════════════════════════
 function renderList(){
   const row = document.getElementById('filter-row');
   if(!row.dataset.init){
@@ -564,76 +670,6 @@ function renderList(){
   body.innerHTML=html;
 }
 
-function downloadPDF(){
-  if(!D.bookings.length){ toast('予約がありません'); return; }
-
-  // 現在のフィルタを取得
-  const row = document.getElementById('filter-row');
-  const active = [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f);
-  let bks = [...D.bookings];
-  if(!active.includes('すべて'))
-    bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
-  if(!bks.length){ toast('表示中の予約がありません'); return; }
-
-  // 印刷用ウィンドウを開く
-  const win = window.open('','_blank');
-  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
-
-  let rows = '';
-  let lastDate = '';
-  bks.forEach(b=>{
-    const all = [b.booker,...b.members];
-    if(b.date !== lastDate){
-      rows += `<tr style="background:#f0f0f0"><td colspan="6" style="padding:8px 10px;font-weight:600;font-size:13px">${dispDate(b.date)}</td></tr>`;
-      lastDate = b.date;
-    }
-    rows += `<tr>
-      <td style="padding:8px 10px;font-size:13px;font-weight:600">${b.hour}:${b.min}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.course}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.type}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.booker}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.members.join('・')||'―'}</td>
-      <td style="padding:8px 10px;font-size:13px;color:#666">${b.note||''}</td>
-    </tr>`;
-  });
-
-  win.document.write(`<!DOCTYPE html>
-<html lang="ja"><head>
-<meta charset="UTF-8">
-<title>ゴルフ予約一覧</title>
-<style>
-  body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;padding:24px;color:#1a1a1a}
-  h1{font-size:18px;font-weight:600;margin-bottom:4px}
-  .sub{font-size:12px;color:#888;margin-bottom:20px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{background:#1a1a1a;color:#fff;padding:8px 10px;text-align:left;font-weight:500;font-size:12px}
-  td{border-bottom:1px solid #e5e5e5;vertical-align:middle}
-  tr:hover td{background:#fafafa}
-  @media print{
-    body{padding:12px}
-    button{display:none}
-    @page{margin:15mm}
-  }
-</style>
-</head><body>
-<h1>ゴルフ予約一覧</h1>
-<div class="sub">出力日：${now}　全${bks.length}件${active.includes('すべて')?'':'（フィルタ適用中）'}</div>
-<table>
-  <thead>
-    <tr>
-      <th>時刻</th><th>コース</th><th>区分</th>
-      <th>予約者</th><th>同伴メンバー</th><th>備考</th>
-    </tr>
-  </thead>
-  <tbody>${rows}</tbody>
-</table>
-<div style="margin-top:20px;text-align:center">
-  <button onclick="window.print()" style="padding:12px 32px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit">🖨️ PDFとして保存 / 印刷</button>
-</div>
-</body></html>`);
-  win.document.close();
-}
-
 function toggleFilter(btn){
   if(btn.dataset.f==='すべて'){
     document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('on'));
@@ -647,7 +683,61 @@ function toggleFilter(btn){
   renderList();
 }
 
-// ── MY ──
+// ══════════════════════════════════════
+//  PDF
+// ══════════════════════════════════════
+function downloadPDF(){
+  if(!D.bookings.length){ toast('予約がありません'); return; }
+  const row = document.getElementById('filter-row');
+  const active = row.dataset.init
+    ? [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f)
+    : ['すべて'];
+  let bks = [...D.bookings];
+  if(!active.includes('すべて'))
+    bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
+  if(!bks.length){ toast('表示中の予約がありません'); return; }
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+  let rows='', lastDate='';
+  bks.forEach(b=>{
+    const all=[b.booker,...b.members];
+    if(b.date!==lastDate){
+      rows+=`<tr style="background:#f0f0f0"><td colspan="6" style="padding:8px 10px;font-weight:600;font-size:13px">${dispDate(b.date)}</td></tr>`;
+      lastDate=b.date;
+    }
+    rows+=`<tr>
+      <td style="padding:8px 10px;font-size:13px;font-weight:600">${b.hour}:${b.min}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.course}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.type}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.booker}</td>
+      <td style="padding:8px 10px;font-size:13px">${b.members.join('・')||'―'}</td>
+      <td style="padding:8px 10px;font-size:13px;color:#666">${b.note||''}</td>
+    </tr>`;
+  });
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="ja"><head>
+<meta charset="UTF-8"><title>ゴルフ予約一覧</title>
+<style>body{font-family:'Hiragino Sans',sans-serif;padding:24px;color:#1a1a1a}
+h1{font-size:18px;font-weight:600;margin-bottom:4px}
+.sub{font-size:12px;color:#888;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+th{background:#1a1a1a;color:#fff;padding:8px 10px;text-align:left;font-size:12px}
+td{border-bottom:1px solid #e5e5e5;vertical-align:middle}
+@media print{button{display:none}@page{margin:15mm}}</style>
+</head><body>
+<h1>ゴルフ予約一覧</h1>
+<div class="sub">出力日：${now}　全${bks.length}件</div>
+<table><thead><tr>
+<th>時刻</th><th>コース</th><th>区分</th><th>予約者</th><th>同伴メンバー</th><th>備考</th>
+</tr></thead><tbody>${rows}</tbody></table>
+<div style="margin-top:20px;text-align:center">
+<button onclick="window.print()" style="padding:12px 32px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer">🖨️ PDFとして保存 / 印刷</button>
+</div></body></html>`);
+  win.document.close();
+}
+
+// ══════════════════════════════════════
+//  MY
+// ══════════════════════════════════════
 function renderMySel(){
   const sel = document.getElementById('my-sel');
   const cur = sel.value;
@@ -670,7 +760,9 @@ function renderMy(){
   body.innerHTML=html;
 }
 
-// ── FORM ──
+// ══════════════════════════════════════
+//  FORM
+// ══════════════════════════════════════
 function onFormChange(){ checkConflict(); renderFormMems(); }
 
 function renderFormMems(){
@@ -691,8 +783,7 @@ function renderFormMems(){
 function addMemberToForm(){
   const sel = document.getElementById('add-mem-sel');
   if(!sel.value || formMems.length>=3) return;
-  formMems.push(sel.value);
-  renderFormMems();
+  formMems.push(sel.value); renderFormMems();
 }
 function removeMem(name){ formMems=formMems.filter(m=>m!==name); renderFormMems(); }
 
@@ -707,11 +798,11 @@ function checkConflict(){
     b.date===date&&b.hour===hour&&b.min===min&&b.course===course&&b.id!==editId
   );
   area.innerHTML = hits.length
-    ? `<div class="conflict-box">⚠ ${hour}:${min} ${course} にすでに${hits.length}件の予約があります（予約者：${hits.map(b=>b.booker).join('・')}）</div>`
+    ? `<div class="conflict-box">⚠ ${hour}:${min} ${course} にすでに${hits.length}件の予約があります（${hits.map(b=>b.booker).join('・')}）</div>`
     : '';
 }
 
-function submitForm(){
+async function submitForm(){
   const booker = document.getElementById('f-booker').value;
   const date   = document.getElementById('f-date').value;
   const hour   = document.getElementById('f-hour').value;
@@ -722,24 +813,32 @@ function submitForm(){
   if(!booker){ toast('予約者を選択してください'); return; }
   if(!date)  { toast('日付を選択してください');   return; }
 
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '登録中...';
+
+  const data = {booker,date,hour,min,course,type,members:formMems,note};
+  let ok = false;
   if(editId){
-    const idx = D.bookings.findIndex(b=>b.id===editId);
-    if(idx>=0) D.bookings[idx]={...D.bookings[idx],date,hour,min,course,type,members:formMems,note};
+    ok = await updateBooking(editId, data);
   } else {
-    D.bookings.push({
-      id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-      booker,date,hour,min,course,type,members:formMems,note,
-      createdAt:new Date().toISOString()
-    });
+    const res = await saveBooking(data);
+    ok = !!res;
   }
-  D.bookings.sort((a,b)=>
-    a.date.localeCompare(b.date)||a.hour.localeCompare(b.hour)||a.min.localeCompare(b.min));
-  saveData();
-  toast(editId?'予約を更新しました':'予約を登録しました');
-  goBack();
+
+  btn.disabled = false;
+  btn.textContent = '予約を登録する';
+
+  if(ok){
+    await loadAll();
+    toast(editId ? '予約を更新しました' : '予約を登録しました');
+    goBack();
+  }
 }
 
-// ── MASTER ──
+// ══════════════════════════════════════
+//  MASTER
+// ══════════════════════════════════════
 function renderMembers(){
   document.getElementById('member-list').innerHTML =
     D.members.map(m=>`
@@ -747,36 +846,45 @@ function renderMembers(){
         <button class="master-del" onclick="deleteMember('${m}')">×</button>
       </div>`).join('');
 }
-function addMember(){
+
+async function addMember(){
   const inp = document.getElementById('new-member');
   const name = inp.value.trim();
-  if(!name||D.members.includes(name)) return;
-  D.members.push(name); inp.value='';
-  saveData(); renderMembers();
+  if(!name||D.members.includes(name)){ toast('名前を入力してください'); return; }
+  const ok = await saveMember(name);
+  if(ok){ await loadAll(); inp.value=''; renderMembers(); renderMySel(); }
 }
-function deleteMember(name){
+
+async function deleteMember(name){
   if(D.bookings.some(b=>b.booker===name||b.members.includes(name))){
     toast(`${name}さんは予約に含まれているため削除できません`); return;
   }
-  D.members=D.members.filter(m=>m!==name);
-  saveData(); renderMembers();
+  const ok = await deleteMemberDB(name);
+  if(ok){ await loadAll(); renderMembers(); }
 }
 
-// ── DELETE ──
+// ══════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════
 function deleteBk(id){
-  showModal('予約を削除', 'この予約を削除してもよいですか？', [
+  showModal('予約を削除','この予約を削除してもよいですか？',[
     {label:'キャンセル', cls:'btn-modal-cancel', fn:closeModal},
-    {label:'削除する',   cls:'btn-modal-danger', fn:()=>{
-      D.bookings=D.bookings.filter(b=>b.id!==id);
-      saveData(); closeModal();
-      renderCal(); renderList(); renderMy();
-      toast('削除しました');
+    {label:'削除する',   cls:'btn-modal-danger', fn:async()=>{
+      const ok = await deleteBookingDB(id);
+      if(ok){
+        await loadAll();
+        closeModal();
+        renderCal(); renderDayPanel(); renderList();
+        toast('削除しました');
+      }
     }}
   ]);
 }
 
-// ── MODAL ──
-function showModal(title, body, btns){
+// ══════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════
+function showModal(title,body,btns){
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').textContent  = body;
   const wrap = document.getElementById('modal-btns');
@@ -789,16 +897,24 @@ function showModal(title, body, btns){
 }
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 
-// ── TOAST ──
+// ══════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2500);
 }
 
-// ── INIT ──
-loadData();
-renderCal();
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+(async()=>{
+  setSyncStatus('loading','接続中...');
+  await loadAll();
+  subscribeRealtime();
+  renderCal();
+})();
 </script>
 </body>
 </html>
