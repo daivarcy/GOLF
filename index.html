@@ -423,8 +423,10 @@ function showForm(id=null){
     const v=pad(i+6); return`<option value="${v}">${v}時</option>`;
   }).join('');
   const mSel = document.getElementById('f-min');
-  mSel.innerHTML = ['00','05','10','15','20','25','30','35','40','45','50','55']
-    .map(v=>`<option value="${v}">${v}分</option>`).join('');
+  mSel.innerHTML = Array.from({length:60},(_,i)=>{
+    const v=String(i).padStart(2,'0');
+    return `<option value="${v}">${v}分</option>`;
+  }).join('');
 
   if(id){
     const b = D.bookings.find(x=>x.id===id);
