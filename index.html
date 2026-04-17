@@ -75,6 +75,8 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .badge-c{background:#dbeafe;color:#1d4ed8}
 .badge-t{background:#dcfce7;color:#15803d}
 .badge-v{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+.badge-contact-ok{background:#dcfce7;color:#15803d}
+.badge-contact-ng{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
 .bk-members{font-size:13px;color:#555;margin-bottom:3px}
 .bk-booker{font-size:12px;color:#888}
 .bk-note{font-size:12px;color:#666;margin-top:6px;padding-top:6px;
@@ -262,15 +264,30 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
       </div>
     </div>
     <div class="master-sec">
+      <div class="master-sec-title">ゴルフ場マスタ</div>
+      <div id="gcourse-list"></div>
+      <div class="master-add">
+        <input class="form-input" id="new-gcourse" placeholder="ゴルフ場名を入力" maxlength="30">
+        <button onclick="addGolfCourse()">追加</button>
+      </div>
+    </div>
+    <div class="master-sec">
       <div class="master-sec-title">コースマスタ</div>
-      <div class="master-item">OUT→IN <span class="fixed-tag">固定</span></div>
-      <div class="master-item">WEST→OUT <span class="fixed-tag">固定</span></div>
-      <div class="master-item">IN→WEST <span class="fixed-tag">固定</span></div>
+      <div id="course-list"></div>
+      <div class="master-add">
+        <input class="form-input" id="new-course" placeholder="コース名を入力（例：EAST→WEST）" maxlength="20">
+        <button onclick="addCourse()">追加</button>
+      </div>
     </div>
     <div class="master-sec">
       <div class="master-sec-title">区分マスタ</div>
       <div class="master-item">通常 <span class="fixed-tag">固定</span></div>
       <div class="master-item">スルー <span class="fixed-tag">固定</span></div>
+    </div>
+    <div class="master-sec">
+      <div class="master-sec-title">連絡区分マスタ</div>
+      <div class="master-item">未連絡 <span class="fixed-tag">デフォルト</span></div>
+      <div class="master-item">連絡済 <span class="fixed-tag">固定</span></div>
     </div>
   </div>
 
@@ -334,8 +351,23 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
         </div>
       </div>
       <div class="form-sec">
+        <label class="form-label">ゴルフ場</label>
+        <div class="sel-wrap">
+          <select class="form-select" id="f-gcourse"></select>
+        </div>
+      </div>
+      <div class="form-sec">
         <label class="form-label">備考（任意）</label>
         <textarea class="form-textarea" id="f-note" rows="3" placeholder="コンペ名など"></textarea>
+      </div>
+      <div class="form-sec">
+        <label class="form-label">連絡区分</label>
+        <div class="sel-wrap">
+          <select class="form-select" id="f-contact">
+            <option>未連絡</option>
+            <option>連絡済</option>
+          </select>
+        </div>
       </div>
       <button class="btn-submit" id="submit-btn" onclick="submitForm()">予約を登録する</button>
       <div style="height:20px"></div>
@@ -366,7 +398,13 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ══════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════
-let D = { members: [], bookings: [] };
+let D = {
+  members: [],
+  bookings: [],
+  courses: ['OUT→IN','WEST→OUT','IN→WEST'],   // コースマスタ（追加可能）
+  golfCourses: ['東名厚木CC'],                   // ゴルフ場マスタ（追加可能）
+  contactTypes: ['未連絡','連絡済'],             // 連絡区分マスタ（固定）
+};
 let calY = new Date().getFullYear();
 let calM = new Date().getMonth();
 let selDate  = null;
@@ -398,6 +436,9 @@ function setSyncStatus(status, label=''){
 // ══════════════════════════════════════
 async function loadAll(){
   setSyncStatus('loading','読み込み中...');
+  // ローカルマスタ（コース・ゴルフ場）を復元
+  try{ const c=localStorage.getItem('golf_courses'); if(c) D.courses=JSON.parse(c); }catch{}
+  try{ const g=localStorage.getItem('golf_gcourses'); if(g) D.golfCourses=JSON.parse(g); }catch{}
   try{
     const [mRes, bRes] = await Promise.all([
       sb.from('members').select('*').order('created_at'),
@@ -407,16 +448,18 @@ async function loadAll(){
     if(bRes.error) throw bRes.error;
     D.members  = mRes.data.map(r=>r.name);
     D.bookings = bRes.data.map(r=>({
-      id:       r.id,
-      booker:   r.booker,
-      date:     r.date,
-      hour:     r.hour,
-      min:      r.min,
-      course:   r.course,
-      type:     r.type,
-      members:  Array.isArray(r.members) ? r.members : [],
-      note:     r.note || '',
-      createdAt:r.created_at
+      id:          r.id,
+      booker:      r.booker,
+      date:        r.date,
+      hour:        r.hour,
+      min:         r.min,
+      course:      r.course,
+      type:        r.type,
+      members:     Array.isArray(r.members) ? r.members : [],
+      note:        r.note || '',
+      contact:     r.contact || '未連絡',
+      golfCourse:  r.golf_course || '東名厚木CC',
+      createdAt:   r.created_at
     }));
     setSyncStatus('ok','');
   }catch(e){
@@ -441,14 +484,16 @@ async function deleteMemberDB(name){
 async function saveBooking(data){
   setSyncStatus('loading','');
   const {data:res, error} = await sb.from('bookings').insert({
-    booker:  data.booker,
-    date:    data.date,
-    hour:    data.hour,
-    min:     data.min,
-    course:  data.course,
-    type:    data.type,
-    members: data.members,
-    note:    data.note
+    booker:      data.booker,
+    date:        data.date,
+    hour:        data.hour,
+    min:         data.min,
+    course:      data.course,
+    type:        data.type,
+    members:     data.members,
+    note:        data.note,
+    contact:     data.contact,
+    golf_course: data.golfCourse
   }).select().single();
   if(error){ setSyncStatus('err','保存失敗'); toast('登録に失敗しました: '+error.message); return null; }
   setSyncStatus('ok',''); return res;
@@ -457,13 +502,15 @@ async function saveBooking(data){
 async function updateBooking(id, data){
   setSyncStatus('loading','');
   const {error} = await sb.from('bookings').update({
-    date:    data.date,
-    hour:    data.hour,
-    min:     data.min,
-    course:  data.course,
-    type:    data.type,
-    members: data.members,
-    note:    data.note
+    date:        data.date,
+    hour:        data.hour,
+    min:         data.min,
+    course:      data.course,
+    type:        data.type,
+    members:     data.members,
+    note:        data.note,
+    contact:     data.contact,
+    golf_course: data.golfCourse
   }).eq('id',id);
   if(error){ setSyncStatus('err','更新失敗'); toast('更新に失敗しました: '+error.message); return false; }
   setSyncStatus('ok',''); return true;
@@ -510,7 +557,7 @@ function showTab(tab){
   if(tab==='cal')    renderCal();
   if(tab==='list')   renderList();
   if(tab==='my')     renderMySel();
-  if(tab==='master') renderMembers();
+  if(tab==='master'){ renderMembers(); renderCourses(); renderGolfCourses(); }
 }
 
 function showForm(id=null){
@@ -524,6 +571,13 @@ function showForm(id=null){
   const bookerSel = document.getElementById('f-booker');
   bookerSel.innerHTML = '<option value="">選択してください</option>'+
     D.members.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  // コース選択肢を動的生成
+  const cSel = document.getElementById('f-course');
+  cSel.innerHTML = D.courses.map(c=>`<option>${c}</option>`).join('');
+  // ゴルフ場選択肢を動的生成
+  const gcSel = document.getElementById('f-gcourse');
+  gcSel.innerHTML = D.golfCourses.map(g=>`<option>${g}</option>`).join('');
 
   const hSel = document.getElementById('f-hour');
   hSel.innerHTML = Array.from({length:14},(_,i)=>{
@@ -543,10 +597,12 @@ function showForm(id=null){
       document.getElementById('f-note').value   = b.note   || '';
       // セレクトボックスはoption生成後にsetするため少し待つ
       setTimeout(()=>{
-        document.getElementById('f-hour').value   = b.hour   || '08';
-        document.getElementById('f-min').value    = b.min    || '00';
-        document.getElementById('f-course').value = b.course || 'OUT→IN';
-        document.getElementById('f-type').value   = b.type   || '通常';
+        document.getElementById('f-hour').value    = b.hour       || '08';
+        document.getElementById('f-min').value     = b.min        || '00';
+        document.getElementById('f-course').value  = b.course     || 'OUT→IN';
+        document.getElementById('f-type').value    = b.type       || '通常';
+        document.getElementById('f-gcourse').value = b.golfCourse || D.golfCourses[0] || '東名厚木CC';
+        document.getElementById('f-contact').value = b.contact    || '未連絡';
       }, 0);
       formMems = Array.isArray(b.members) ? [...b.members] : [];
     }
@@ -556,9 +612,10 @@ function showForm(id=null){
     document.getElementById('f-date').value   = selDate||'';
     document.getElementById('f-hour').value   = '08';
     document.getElementById('f-min').value    = '00';
-    document.getElementById('f-course').value = 'OUT→IN';
-    document.getElementById('f-type').value   = '通常';
-    document.getElementById('f-note').value   = '';
+    document.getElementById('f-course').value  = D.courses[0] || 'OUT→IN';
+    document.getElementById('f-type').value    = '通常';
+    document.getElementById('f-note').value    = '';
+    document.getElementById('f-contact').value = '未連絡';
   }
   renderFormMems();
   checkConflict();
@@ -636,6 +693,9 @@ function bkCardHtml(b, showActions=false){
   const vacancyHtml = vacancy > 0
     ? `<span class="badge badge-v">空き${vacancy}名</span>`
     : '';
+  const contact = b.contact || '未連絡';
+  const contactHtml = `<span class="badge ${contact==='連絡済'?'badge-contact-ok':'badge-contact-ng'}">${contact}</span>`;
+  const golfCourse = b.golfCourse || '東名厚木CC';
   return `<div class="bk-card">
     <div class="bk-top">
       <span class="bk-time">${b.hour}:${b.min}</span>
@@ -643,10 +703,11 @@ function bkCardHtml(b, showActions=false){
         <span class="badge badge-c">${b.course}</span>
         <span class="badge badge-t">${b.type}</span>
         ${vacancyHtml}
+        ${contactHtml}
       </div>
     </div>
     <div class="bk-members">${all.join('・')}（${all.length}名）</div>
-    <div class="bk-booker">予約者：${b.booker}</div>
+    <div class="bk-booker">予約者：${b.booker}　<span style="color:#888;font-size:11px">${golfCourse}</span></div>
     ${b.note?`<div class="bk-note">${b.note}</div>`:''}
     ${showActions?`<div class="bk-actions">
       <button class="btn-sm" onclick="showForm('${b.id}')">編集</button>
@@ -829,7 +890,9 @@ async function submitForm(){
   btn.disabled = true;
   btn.textContent = '登録中...';
 
-  const data = {booker,date,hour,min,course,type,members:formMems,note};
+  const contact    = document.getElementById('f-contact').value;
+  const golfCourse = document.getElementById('f-gcourse').value;
+  const data = {booker,date,hour,min,course,type,members:formMems,note,contact,golfCourse};
   let ok = false;
   if(editId){
     ok = await updateBooking(editId, data);
@@ -857,6 +920,60 @@ function renderMembers(){
       <div class="master-item">${m}
         <button class="master-del" onclick="deleteMember('${m}')">×</button>
       </div>`).join('');
+}
+
+function renderCourses(){
+  const fixed = ['OUT→IN','WEST→OUT','IN→WEST'];
+  document.getElementById('course-list').innerHTML =
+    D.courses.map(c=>`
+      <div class="master-item">${c}
+        ${fixed.includes(c)
+          ? '<span class="fixed-tag">固定</span>'
+          : `<button class="master-del" onclick="deleteCourse('${c}')">×</button>`}
+      </div>`).join('');
+}
+
+function renderGolfCourses(){
+  document.getElementById('gcourse-list').innerHTML =
+    D.golfCourses.map((g,i)=>`
+      <div class="master-item">${g}
+        ${i===0
+          ? '<span class="fixed-tag">デフォルト</span>'
+          : `<button class="master-del" onclick="deleteGolfCourse('${g}')">×</button>`}
+      </div>`).join('');
+}
+
+function addCourse(){
+  const inp = document.getElementById('new-course');
+  const name = inp.value.trim();
+  if(!name || D.courses.includes(name)){ toast('コース名を入力してください'); return; }
+  D.courses.push(name);
+  localStorage.setItem('golf_courses', JSON.stringify(D.courses));
+  inp.value=''; renderCourses(); toast('追加しました');
+}
+
+function deleteCourse(name){
+  const fixed=['OUT→IN','WEST→OUT','IN→WEST'];
+  if(fixed.includes(name)){ toast('固定コースは削除できません'); return; }
+  D.courses = D.courses.filter(c=>c!==name);
+  localStorage.setItem('golf_courses', JSON.stringify(D.courses));
+  renderCourses(); toast('削除しました');
+}
+
+function addGolfCourse(){
+  const inp = document.getElementById('new-gcourse');
+  const name = inp.value.trim();
+  if(!name || D.golfCourses.includes(name)){ toast('ゴルフ場名を入力してください'); return; }
+  D.golfCourses.push(name);
+  localStorage.setItem('golf_gcourses', JSON.stringify(D.golfCourses));
+  inp.value=''; renderGolfCourses(); toast('追加しました');
+}
+
+function deleteGolfCourse(name){
+  if(D.golfCourses[0]===name){ toast('デフォルトのゴルフ場は削除できません'); return; }
+  D.golfCourses = D.golfCourses.filter(g=>g!==name);
+  localStorage.setItem('golf_gcourses', JSON.stringify(D.golfCourses));
+  renderGolfCourses(); toast('削除しました');
 }
 
 async function addMember(){
