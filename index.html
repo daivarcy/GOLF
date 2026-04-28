@@ -138,6 +138,26 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 
 /* ── MY ── */
 .my-top{padding:12px 16px;border-bottom:1px solid #f0f0f0}
+.date-range-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;background:#f9f9f9;
+  border-bottom:1px solid #f0f0f0;flex-wrap:wrap;
+}
+.date-range-bar label{font-size:11px;color:#888;white-space:nowrap}
+.date-range-bar input[type=date]{
+  padding:6px 8px;border:1px solid #ddd;border-radius:8px;
+  font-size:13px;font-family:inherit;color:#1a1a1a;
+  background:#fff;-webkit-appearance:none;outline:none;
+  flex:1;min-width:120px;
+}
+.date-range-bar input[type=date]:focus{border-color:#1a1a1a}
+.btn-range-reset{
+  padding:6px 12px;background:none;border:1px solid #ddd;
+  border-radius:8px;font-size:12px;color:#888;cursor:pointer;
+  font-family:inherit;white-space:nowrap;flex-shrink:0;
+}
+.btn-range-reset:active{background:#f0f0f0}
+.date-range-sep{font-size:12px;color:#aaa;flex-shrink:0}
 
 /* ── MASTER ── */
 .master-sec{padding:16px}
@@ -237,6 +257,13 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
     <div style="display:flex;justify-content:flex-end;padding:10px 14px 0">
       <button onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF出力</button>
     </div>
+    <div class="date-range-bar">
+      <label>表示期間</label>
+      <input type="date" id="list-from" onchange="renderList()">
+      <span class="date-range-sep">〜</span>
+      <input type="date" id="list-to" onchange="renderList()">
+      <button class="btn-range-reset" onclick="resetListRange()">今日〜3ヶ月</button>
+    </div>
     <div class="filter-row" id="filter-row"></div>
     <div class="list-body" id="list-body"></div>
   </div>
@@ -249,6 +276,13 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
           <option value="">メンバーを選択...</option>
         </select>
       </div>
+    </div>
+    <div class="date-range-bar">
+      <label>表示期間</label>
+      <input type="date" id="my-from" onchange="renderMy()">
+      <span class="date-range-sep">〜</span>
+      <input type="date" id="my-to" onchange="renderMy()">
+      <button class="btn-range-reset" onclick="resetMyRange()">今日〜3ヶ月</button>
     </div>
     <div class="list-body" id="my-body"></div>
   </div>
@@ -719,7 +753,41 @@ function bkCardHtml(b, showActions=false){
 // ══════════════════════════════════════
 //  LIST
 // ══════════════════════════════════════
+// ── 日付範囲ヘルパー ──
+function todayStr(){
+  const d=new Date(); d.setHours(0,0,0,0);
+  return fmt(d);
+}
+function plus3Months(){
+  const d=new Date(); d.setHours(0,0,0,0);
+  d.setMonth(d.getMonth()+3);
+  return fmt(d);
+}
+function initListRange(){
+  const f=document.getElementById('list-from');
+  const t=document.getElementById('list-to');
+  if(!f.value) f.value=todayStr();
+  if(!t.value) t.value=plus3Months();
+}
+function resetListRange(){
+  document.getElementById('list-from').value=todayStr();
+  document.getElementById('list-to').value=plus3Months();
+  renderList();
+}
+function initMyRange(){
+  const f=document.getElementById('my-from');
+  const t=document.getElementById('my-to');
+  if(!f.value) f.value=todayStr();
+  if(!t.value) t.value=plus3Months();
+}
+function resetMyRange(){
+  document.getElementById('my-from').value=todayStr();
+  document.getElementById('my-to').value=plus3Months();
+  renderMy();
+}
+
 function renderList(){
+  initListRange();
   const row = document.getElementById('filter-row');
   if(!row.dataset.init){
     const chips = ['すべて','OUT→IN','WEST→OUT','IN→WEST','通常','スルー'];
@@ -727,11 +795,20 @@ function renderList(){
     row.dataset.init='1';
   }
   const active = [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f);
+  const fromDate = document.getElementById('list-from').value;
+  const toDate   = document.getElementById('list-to').value;
   let bks = [...D.bookings];
+  // 日付範囲フィルタ
+  if(fromDate) bks = bks.filter(b=>b.date>=fromDate);
+  if(toDate)   bks = bks.filter(b=>b.date<=toDate);
+  // コース・区分フィルタ
   if(!active.includes('すべて'))
     bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
   const body = document.getElementById('list-body');
-  if(!bks.length){ body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">予約がありません</div>'; return; }
+  if(!bks.length){
+    body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">この期間の予約はありません</div>';
+    return;
+  }
   let html='', last='';
   bks.forEach(b=>{
     if(b.date!==last){ html+=`<div class="list-date-hd">${dispDate(b.date)}</div>`; last=b.date; }
@@ -762,7 +839,11 @@ function downloadPDF(){
   const active = row.dataset.init
     ? [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f)
     : ['すべて'];
+  const fromDate = document.getElementById('list-from').value;
+  const toDate   = document.getElementById('list-to').value;
   let bks = [...D.bookings];
+  if(fromDate) bks = bks.filter(b=>b.date>=fromDate);
+  if(toDate)   bks = bks.filter(b=>b.date<=toDate);
   if(!active.includes('すべて'))
     bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
   if(!bks.length){ toast('表示中の予約がありません'); return; }
@@ -818,13 +899,21 @@ function renderMySel(){
   renderMy();
 }
 function renderMy(){
+  initMyRange();
   const name = document.getElementById('my-sel').value;
-  // 選択したメンバーをlocalStorageに保存
   if(name) localStorage.setItem('golf_my_member', name);
+  const fromDate = document.getElementById('my-from').value;
+  const toDate   = document.getElementById('my-to').value;
   const body = document.getElementById('my-body');
   if(!name){ body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">メンバーを選択してください</div>'; return; }
-  const bks = D.bookings.filter(b=>b.booker===name||b.members.includes(name));
-  if(!bks.length){ body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">予約はありません</div>'; return; }
+  let bks = D.bookings.filter(b=>b.booker===name||b.members.includes(name));
+  // 日付範囲フィルタ
+  if(fromDate) bks = bks.filter(b=>b.date>=fromDate);
+  if(toDate)   bks = bks.filter(b=>b.date<=toDate);
+  if(!bks.length){
+    body.innerHTML='<div style="padding:32px;text-align:center;color:#888;font-size:14px">この期間の予約はありません</div>';
+    return;
+  }
   let html='', last='';
   bks.forEach(b=>{
     if(b.date!==last){ html+=`<div class="list-date-hd">${dispDate(b.date)}</div>`; last=b.date; }
