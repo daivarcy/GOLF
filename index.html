@@ -265,8 +265,10 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 
   <!-- LIST -->
   <div class="screen" id="sc-list">
-    <div style="display:flex;justify-content:flex-end;padding:10px 14px 0">
-      <button onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF出力</button>
+    <div style="display:flex;justify-content:flex-end;gap:6px;padding:10px 14px 0">
+      <button onclick="downloadPDF()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📄 PDF</button>
+      <button onclick="downloadExcel()" style="background:#217346;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📊 Excel</button>
+      <button onclick="downloadCSV()" style="background:#555;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">📋 CSV</button>
     </div>
     <div class="date-range-bar">
       <label>表示期間</label>
@@ -842,10 +844,9 @@ function toggleFilter(btn){
 }
 
 // ══════════════════════════════════════
-//  PDF
+//  共通：出力データを取得
 // ══════════════════════════════════════
-function downloadPDF(){
-  if(!D.bookings.length){ toast('予約がありません'); return; }
+function getFilteredBks(){
   const row = document.getElementById('filter-row');
   const active = row.dataset.init
     ? [...row.querySelectorAll('.filter-chip.on')].map(b=>b.dataset.f)
@@ -857,44 +858,165 @@ function downloadPDF(){
   if(toDate)   bks = bks.filter(b=>b.date<=toDate);
   if(!active.includes('すべて'))
     bks = bks.filter(b=>active.some(f=>b.course===f||b.type===f));
+  return bks;
+}
+
+// ══════════════════════════════════════
+//  PDF出力（横向き・列幅固定で名前欠け防止）
+// ══════════════════════════════════════
+function downloadPDF(){
+  if(!D.bookings.length){ toast('予約がありません'); return; }
+  const bks = getFilteredBks();
   if(!bks.length){ toast('表示中の予約がありません'); return; }
   const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
   let rows='', lastDate='';
   bks.forEach(b=>{
-    const all=[b.booker,...b.members];
+    const all=[b.booker,...(Array.isArray(b.members)?b.members:[])];
     if(b.date!==lastDate){
-      rows+=`<tr style="background:#f0f0f0"><td colspan="6" style="padding:8px 10px;font-weight:600;font-size:13px">${dispDate(b.date)}</td></tr>`;
+      rows+=`<tr class="date-row"><td colspan="8">${dispDate(b.date)}</td></tr>`;
       lastDate=b.date;
     }
+    const contact=b.contact||'未連絡';
+    const gc=b.golfCourse||'';
     rows+=`<tr>
-      <td style="padding:8px 10px;font-size:13px;font-weight:600">${b.hour}:${b.min}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.course}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.type}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.booker}</td>
-      <td style="padding:8px 10px;font-size:13px">${b.members.join('・')||'―'}</td>
-      <td style="padding:8px 10px;font-size:13px;color:#666">${b.note||''}</td>
+      <td class="tc">${b.hour}:${b.min}</td>
+      <td>${b.course}</td>
+      <td>${b.type}</td>
+      <td>${gc}</td>
+      <td class="nm">${b.booker}</td>
+      <td class="nm">${Array.isArray(b.members)?b.members.join('・'):''}</td>
+      <td class="ct ${contact==='連絡済'?'ok':'ng'}">${contact}</td>
+      <td class="nt">${b.note||''}</td>
     </tr>`;
   });
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="ja"><head>
 <meta charset="UTF-8"><title>ゴルフ予約一覧</title>
-<style>body{font-family:'Hiragino Sans',sans-serif;padding:24px;color:#1a1a1a}
-h1{font-size:18px;font-weight:600;margin-bottom:4px}
-.sub{font-size:12px;color:#888;margin-bottom:20px}
-table{width:100%;border-collapse:collapse}
-th{background:#1a1a1a;color:#fff;padding:8px 10px;text-align:left;font-size:12px}
-td{border-bottom:1px solid #e5e5e5;vertical-align:middle}
-@media print{button{display:none}@page{margin:15mm}}</style>
+<style>
+*{box-sizing:border-box}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;padding:16px;color:#1a1a1a;font-size:11px}
+h1{font-size:15px;font-weight:600;margin-bottom:3px}
+.sub{font-size:11px;color:#888;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+col.c-time{width:52px}col.c-course{width:90px}col.c-type{width:48px}
+col.c-gc{width:90px}col.c-booker{width:60px}col.c-members{width:120px}
+col.c-contact{width:52px}col.c-note{width:auto}
+th{background:#1a1a1a;color:#fff;padding:5px 6px;text-align:left;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden}
+td{border-bottom:1px solid #e5e5e5;padding:5px 6px;vertical-align:middle;word-break:break-all}
+td.tc{font-weight:600;white-space:nowrap}
+td.nm{word-break:break-all}
+td.nt{color:#666;word-break:break-all}
+td.ct{font-size:10px;text-align:center;border-radius:3px}
+td.ok{color:#15803d;background:#dcfce7}td.ng{color:#b91c1c;background:#fef2f2}
+tr.date-row td{background:#f0f0f0;font-weight:700;font-size:12px;padding:6px;border-bottom:1px solid #ccc}
+tr:hover td{background:#fafafa}
+.btn-print{display:block;margin:16px auto 0;padding:10px 28px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+@media print{
+  .btn-print{display:none}
+  @page{margin:10mm;size:A4 landscape}
+  body{padding:0;font-size:10px}
+}
+</style>
 </head><body>
 <h1>ゴルフ予約一覧</h1>
 <div class="sub">出力日：${now}　全${bks.length}件</div>
-<table><thead><tr>
-<th>時刻</th><th>コース</th><th>区分</th><th>予約者</th><th>同伴メンバー</th><th>備考</th>
-</tr></thead><tbody>${rows}</tbody></table>
-<div style="margin-top:20px;text-align:center">
-<button onclick="window.print()" style="padding:12px 32px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer">🖨️ PDFとして保存 / 印刷</button>
-</div></body></html>`);
+<table>
+<colgroup>
+  <col class="c-time"><col class="c-course"><col class="c-type">
+  <col class="c-gc"><col class="c-booker"><col class="c-members">
+  <col class="c-contact"><col class="c-note">
+</colgroup>
+<thead><tr>
+  <th>時刻</th><th>コース</th><th>区分</th><th>ゴルフ場</th>
+  <th>予約者</th><th>同伴メンバー</th><th>連絡</th><th>備考</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<button class="btn-print" onclick="window.print()">🖨️ PDFとして保存 / 印刷</button>
+</body></html>`);
   win.document.close();
+}
+
+// ══════════════════════════════════════
+//  Excel出力（SheetJSライブラリを使用）
+// ══════════════════════════════════════
+async function downloadExcel(){
+  if(!D.bookings.length){ toast('予約がありません'); return; }
+  const bks = getFilteredBks();
+  if(!bks.length){ toast('表示中の予約がありません'); return; }
+
+  // SheetJSを動的ロード
+  if(!window.XLSX){
+    toast('Excelライブラリを読み込み中...');
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
+    });
+  }
+
+  // ヘッダー
+  const headers=['日付','曜日','時刻','ゴルフ場','コース','区分','予約者','同伴メンバー','連絡区分','備考'];
+  const dow='日月火水木金土';
+  const data=bks.map(b=>{
+    const d=new Date(b.date+'T00:00:00');
+    return [
+      b.date,
+      dow[d.getDay()],
+      `${b.hour}:${b.min}`,
+      b.golfCourse||'',
+      b.course,
+      b.type,
+      b.booker,
+      Array.isArray(b.members)?b.members.join('・'):'',
+      b.contact||'未連絡',
+      b.note||''
+    ];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([headers,...data]);
+  // 列幅設定
+  ws['!cols']=[
+    {wch:12},{wch:5},{wch:8},{wch:14},{wch:10},{wch:6},
+    {wch:8},{wch:20},{wch:8},{wch:30}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'予約一覧');
+  const fname=`ゴルフ予約_${new Date().toLocaleDateString('ja').replace(/\//g,'-')}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  toast('Excelをダウンロードしました');
+}
+
+// ══════════════════════════════════════
+//  CSV出力
+// ══════════════════════════════════════
+function downloadCSV(){
+  if(!D.bookings.length){ toast('予約がありません'); return; }
+  const bks = getFilteredBks();
+  if(!bks.length){ toast('表示中の予約がありません'); return; }
+  const dow='日月火水木金土';
+  const h='日付,曜日,時刻,ゴルフ場,コース,区分,予約者,同伴メンバー,連絡区分,備考';
+  const rows=bks.map(b=>{
+    const d=new Date(b.date+'T00:00:00');
+    return [
+      b.date,
+      dow[d.getDay()],
+      `${b.hour}:${b.min}`,
+      `"${b.golfCourse||''}"`,
+      b.course,
+      b.type,
+      b.booker,
+      `"${Array.isArray(b.members)?b.members.join('・'):''}"`,
+      b.contact||'未連絡',
+      `"${(b.note||'').replace(/"/g,'""')}"`
+    ].join(',');
+  }).join('\n');
+  const blob=new Blob(['\uFEFF'+h+'\n'+rows],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`ゴルフ予約_${new Date().toLocaleDateString('ja').replace(/\//g,'-')}.csv`;
+  a.click();
+  toast('CSVをダウンロードしました');
 }
 
 // ══════════════════════════════════════
