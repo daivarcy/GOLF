@@ -891,7 +891,7 @@ function downloadPDF(){
     // 備考行（備考がある場合だけ表示）
     if(note){
       rows+=`<tr class="note-row">
-        <td colspan="7" class="nt">📝 ${note.replace(/\n/g,'<br>')}</td>
+        <td colspan="7" class="nt">📝 ${note.replace(/[\r\n]+/g,'　').trim()}</td>
       </tr>`;
     }
   });
@@ -916,7 +916,7 @@ th{background:#1a1a1a;color:#fff;padding:5px 6px;text-align:left;font-size:10px;
 td{border-bottom:1px solid #e5e5e5;padding:5px 6px;vertical-align:middle;word-break:break-all}
 td.tc{font-weight:600;white-space:nowrap}
 td.nm{word-break:break-all}
-td.nt{color:#555;word-break:break-word;white-space:pre-wrap;
+td.nt{color:#555;word-break:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background:#fafafa;
   padding:4px 8px 6px 18px;font-size:10px;border-bottom:2px solid #e0e0e0}
 tr.main-row td{border-bottom:none} /* 備考行がある場合は区切り線をnoteに任せる */
@@ -1090,7 +1090,7 @@ async function submitForm(){
   const min    = document.getElementById('f-min').value;
   const course = document.getElementById('f-course').value;
   const type   = document.getElementById('f-type').value;
-  const note   = document.getElementById('f-note').value.trim();
+  const note   = document.getElementById('f-note').value.replace(/[\r\n]+/g,' ').trim();
   if(!booker){ toast('予約者を選択してください'); return; }
   if(!date)  { toast('日付を選択してください');   return; }
 
