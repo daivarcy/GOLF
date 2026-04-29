@@ -870,23 +870,30 @@ function downloadPDF(){
   const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
   let rows='', lastDate='';
   bks.forEach(b=>{
-    const all=[b.booker,...(Array.isArray(b.members)?b.members:[])];
     if(b.date!==lastDate){
-      rows+=`<tr class="date-row"><td colspan="8">${dispDate(b.date)}</td></tr>`;
+      rows+=`<tr class="date-row"><td colspan="7">${dispDate(b.date)}</td></tr>`;
       lastDate=b.date;
     }
     const contact=b.contact||'未連絡';
     const gc=b.golfCourse||'';
-    rows+=`<tr>
+    const note=(b.note||'').trim();
+    const members=Array.isArray(b.members)?b.members.join('・'):'';
+    // メイン行（備考なし）
+    rows+=`<tr class="main-row">
       <td class="tc">${b.hour}:${b.min}</td>
       <td>${b.course}</td>
       <td>${b.type}</td>
       <td>${gc}</td>
       <td class="nm">${b.booker}</td>
-      <td class="nm">${Array.isArray(b.members)?b.members.join('・'):''}</td>
+      <td class="nm">${members}</td>
       <td class="ct ${contact==='連絡済'?'ok':'ng'}">${contact}</td>
-      <td class="nt">${b.note||''}</td>
     </tr>`;
+    // 備考行（備考がある場合だけ表示）
+    if(note){
+      rows+=`<tr class="note-row">
+        <td colspan="7" class="nt">📝 ${note.replace(/\n/g,'<br>')}</td>
+      </tr>`;
+    }
   });
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html lang="ja"><head>
@@ -905,12 +912,14 @@ col.c-gc{width:130px}
 col.c-booker{width:80px}
 col.c-members{width:330px}
 col.c-contact{width:52px}
-col.c-note{width:auto}
 th{background:#1a1a1a;color:#fff;padding:5px 6px;text-align:left;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden}
 td{border-bottom:1px solid #e5e5e5;padding:5px 6px;vertical-align:middle;word-break:break-all}
 td.tc{font-weight:600;white-space:nowrap}
 td.nm{word-break:break-all}
-td.nt{color:#666;word-break:break-all}
+td.nt{color:#555;word-break:break-all;background:#fafafa;
+  padding:4px 8px 6px 18px;font-size:10px;border-bottom:2px solid #e0e0e0}
+tr.main-row td{border-bottom:none} /* 備考行がある場合は区切り線をnoteに任せる */
+tr.note-row+tr.main-row td{border-top:1px solid #e5e5e5}
 td.ct{font-size:10px;text-align:center;border-radius:3px}
 td.ok{color:#15803d;background:#dcfce7}td.ng{color:#b91c1c;background:#fef2f2}
 tr.date-row td{background:#f0f0f0;font-weight:700;font-size:12px;padding:6px;border-bottom:1px solid #ccc}
@@ -930,11 +939,11 @@ tr:hover td{background:#fafafa}
 <colgroup>
   <col class="c-time"><col class="c-course"><col class="c-type">
   <col class="c-gc"><col class="c-booker"><col class="c-members">
-  <col class="c-contact"><col class="c-note">
+  <col class="c-contact">
 </colgroup>
 <thead><tr>
   <th>時刻</th><th>コース</th><th>区分</th><th>ゴルフ場</th>
-  <th>予約者</th><th>同伴メンバー</th><th>連絡</th><th>備考</th>
+  <th>予約者</th><th>同伴メンバー</th><th>連絡</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
