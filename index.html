@@ -166,6 +166,17 @@ body{font-family:-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
 .master-item{display:flex;align-items:center;justify-content:space-between;
   padding:11px 12px;background:#f9f9f9;border-radius:8px;font-size:14px;margin-bottom:6px}
 .master-del{background:none;border:none;cursor:pointer;color:#bbb;font-size:18px;padding:0;line-height:1}
+.master-edit{background:none;border:1px solid #ddd;border-radius:6px;
+  cursor:pointer;color:#555;font-size:11px;padding:4px 8px;
+  font-family:inherit;margin-right:4px}
+.master-edit:active{background:#f0f0f0}
+.master-edit-row{display:flex;gap:6px;margin-top:6px;align-items:center}
+.master-edit-inp{flex:1;padding:8px 10px;border:1px solid #1a1a1a;
+  border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.master-edit-save{padding:8px 14px;background:#1a1a1a;color:#fff;
+  border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.master-edit-cancel{padding:8px 12px;background:none;border:1px solid #ddd;
+  border-radius:8px;font-size:13px;cursor:pointer;color:#888;font-family:inherit}
 .master-add{display:flex;gap:8px;margin-top:4px}
 .master-add .form-input{flex:1}
 .master-add button{padding:12px 16px;background:#1a1a1a;color:#fff;border:none;
@@ -1006,9 +1017,75 @@ async function submitForm(){
 function renderMembers(){
   document.getElementById('member-list').innerHTML =
     D.members.map(m=>`
-      <div class="master-item">${m}
-        <button class="master-del" onclick="deleteMember('${m}')">×</button>
+      <div class="master-item" id="mi-${CSS.escape(m)}">
+        <span class="mi-name">${m}</span>
+        <div style="display:flex;gap:4px">
+          <button class="master-edit" onclick="startEditMember('${m}')">編集</button>
+          <button class="master-del"  onclick="deleteMember('${m}')">×</button>
+        </div>
       </div>`).join('');
+}
+
+function startEditMember(oldName){
+  // 他の編集中行があれば閉じる
+  document.querySelectorAll('.master-edit-row').forEach(r=>r.remove());
+  document.querySelectorAll('.master-item').forEach(el=>el.style.flexWrap='');
+
+  const item = document.getElementById('mi-'+CSS.escape(oldName));
+  if(!item) return;
+  item.style.flexWrap = 'wrap';
+
+  const row = document.createElement('div');
+  row.className = 'master-edit-row';
+  row.style.width = '100%';
+  row.innerHTML = `
+    <input class="master-edit-inp" id="edit-inp-${CSS.escape(oldName)}"
+      value="${oldName}" maxlength="20" type="text">
+    <button class="master-edit-save" onclick="saveEditMember('${oldName}')">保存</button>
+    <button class="master-edit-cancel" onclick="cancelEditMember()">✕</button>
+  `;
+  item.appendChild(row);
+  const inp = document.getElementById('edit-inp-'+CSS.escape(oldName));
+  if(inp){ inp.focus(); inp.select(); }
+  // Enterキーで保存
+  inp.onkeydown = (e)=>{ if(e.key==='Enter') saveEditMember(oldName); };
+}
+
+function cancelEditMember(){
+  document.querySelectorAll('.master-edit-row').forEach(r=>r.remove());
+  document.querySelectorAll('.master-item').forEach(el=>el.style.flexWrap='');
+}
+
+async function saveEditMember(oldName){
+  const inp = document.getElementById('edit-inp-'+CSS.escape(oldName));
+  if(!inp) return;
+  const newName = inp.value.trim();
+  if(!newName){ toast('名前を入力してください'); return; }
+  if(newName===oldName){ cancelEditMember(); return; }
+  if(D.members.includes(newName)){ toast('その名前はすでに存在します'); return; }
+
+  setSyncStatus('loading','');
+  // Supabaseのmembersテーブルを更新
+  const {error} = await sb.from('members').update({name:newName}).eq('name',oldName);
+  if(error){ setSyncStatus('err','更新失敗'); toast('更新に失敗しました: '+error.message); return; }
+
+  // 予約データのbooker・membersも更新
+  const bkUpdates = D.bookings
+    .filter(b=>b.booker===oldName||b.members.includes(oldName))
+    .map(b=>({
+      id: b.id,
+      booker:  b.booker===oldName ? newName : b.booker,
+      members: b.members.map(m=>m===oldName?newName:m)
+    }));
+  for(const u of bkUpdates){
+    await sb.from('bookings').update({booker:u.booker, members:u.members}).eq('id',u.id);
+  }
+
+  setSyncStatus('ok','');
+  await loadAll();
+  renderMembers();
+  renderMySel();
+  toast(`「${oldName}」→「${newName}」に更新しました`);
 }
 
 function renderCourses(){
